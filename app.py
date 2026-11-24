@@ -302,13 +302,22 @@ def history_delete_api(video_id):
         return jsonify({"error": str(e)}), 500
 
 
-def run_server(host: str = "127.0.0.1", port: int = 5000, debug: bool = False):
+def run_server(host: str = None, port: int = None, debug: bool = None):
     """Run the Flask app on the given host and port."""
+    if host is None:
+        host = os.environ.get("HOST", "0.0.0.0")
+    if port is None:
+        port = int(os.environ.get("PORT", 5000))
+    if debug is None:
+        debug = os.environ.get("FLASK_DEBUG", "false").lower() in ("true", "1")
     app.run(host=host, port=port, debug=debug, threaded=True)
 
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", 5000))
+    host = os.environ.get("HOST", "0.0.0.0")
+    debug = os.environ.get("FLASK_DEBUG", "false").lower() in ("true", "1")
     print("\n  🎬 YouTube Video Analyzer — Web Interface")
     print("  ──────────────────────────────────────────")
-    print("  Open http://127.0.0.1:5000 in your browser\n")
-    run_server(debug=True)
+    print(f"  Server listening on http://{host}:{port}\n")
+    run_server(host=host, port=port, debug=debug)
