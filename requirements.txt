@@ -1,0 +1,7 @@
+flask>=3.0.0
+google-genai>=2.3.0
+youtube-transcript-api>=0.6.0
+python-dotenv>=1.0.0
+rich>=13.0.0
+pywebview>=5.0.0
+pyinstaller>=6.0.0

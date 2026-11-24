@@ -1,0 +1,1486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🎬 YouTube Video Analyzer</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0d1117;
+            --card-bg: #161b22;
+            --sidebar-bg: #13171d;
+            --accent-color: #58a6ff;
+            --accent-hover: #79b8ff;
+            --text-color: #c9d1d9;
+            --text-muted: #8b949e;
+            --border-color: #30363d;
+            --success-color: #238636;
+            --error-color: #f85149;
+            --sidebar-width: 320px;
+            --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-family);
+            line-height: 1.6;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+        }
+
+        /* ── App Layout ── */
+        .app-layout {
+            display: flex;
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* ── Left Sidebar (History Lane) ── */
+        .sidebar {
+            width: var(--sidebar-width);
+            min-width: var(--sidebar-width);
+            max-width: var(--sidebar-width);
+            background-color: var(--sidebar-bg);
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            z-index: 100;
+        }
+
+        .sidebar.collapsed {
+            margin-left: calc(-1 * var(--sidebar-width));
+        }
+
+        .sidebar-header {
+            padding: 1.1rem 1rem 0.9rem 1.1rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+            background-color: var(--card-bg);
+        }
+
+        .sidebar-title {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: var(--text-color);
+        }
+
+        .history-badge {
+            background: rgba(88, 166, 255, 0.15);
+            color: var(--accent-color);
+            font-size: 0.75rem;
+            padding: 0.15rem 0.55rem;
+            border-radius: 12px;
+            font-weight: 700;
+        }
+
+        .sidebar-actions {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .btn-sidebar-action {
+            background: var(--bg-color);
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.35rem 0.65rem;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            transition: all 0.2s;
+        }
+
+        .btn-sidebar-action:hover {
+            color: var(--text-color);
+            border-color: var(--accent-color);
+            background: rgba(88, 166, 255, 0.1);
+        }
+
+        .btn-sidebar-action.icon-only {
+            padding: 0.35rem 0.5rem;
+        }
+
+        .sidebar-search {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border-color);
+            position: relative;
+            display: flex;
+            align-items: center;
+            background-color: rgba(22, 27, 34, 0.5);
+        }
+
+        .sidebar-search .search-icon {
+            position: absolute;
+            left: 1.5rem;
+            font-size: 0.85rem;
+            color: var(--text-muted);
+            pointer-events: none;
+        }
+
+        .sidebar-search input {
+            width: 100%;
+            padding: 0.45rem 1.8rem 0.45rem 2rem;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-color);
+            font-size: 0.85rem;
+            transition: border-color 0.2s;
+        }
+
+        .sidebar-search input:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .clear-search-btn {
+            position: absolute;
+            right: 1.5rem;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-size: 0.85rem;
+            padding: 0.2rem;
+        }
+
+        .history-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0.6rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.45rem;
+        }
+
+        .history-list::-webkit-scrollbar {
+            width: 6px;
+        }
+        .history-list::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 3px;
+        }
+
+        /* History card */
+        .history-item {
+            display: flex;
+            gap: 0.65rem;
+            padding: 0.6rem;
+            border-radius: 8px;
+            border: 1px solid transparent;
+            background-color: transparent;
+            cursor: pointer;
+            transition: all 0.18s ease;
+            position: relative;
+            text-align: left;
+            align-items: center;
+        }
+
+        .history-item:hover {
+            background-color: rgba(255, 255, 255, 0.05);
+            border-color: var(--border-color);
+        }
+
+        .history-item.active {
+            background-color: rgba(88, 166, 255, 0.12);
+            border-color: var(--accent-color);
+        }
+
+        .history-thumb-wrapper {
+            width: 76px;
+            height: 48px;
+            border-radius: 6px;
+            overflow: hidden;
+            flex-shrink: 0;
+            background-color: #0d1117;
+            border: 1px solid var(--border-color);
+            position: relative;
+        }
+
+        .history-thumb {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        .history-details {
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+
+        .history-item-title {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-color);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            line-height: 1.3;
+        }
+
+        .history-item-meta {
+            font-size: 0.72rem;
+            color: var(--text-muted);
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .history-id {
+            font-family: monospace;
+            background: rgba(110, 118, 129, 0.25);
+            padding: 0.05rem 0.3rem;
+            border-radius: 3px;
+        }
+
+        .history-delete-btn {
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 0.35rem;
+            border-radius: 4px;
+            opacity: 0;
+            transition: opacity 0.15s, color 0.15s;
+            font-size: 0.85rem;
+            flex-shrink: 0;
+        }
+
+        .history-item:hover .history-delete-btn {
+            opacity: 0.7;
+        }
+
+        .history-delete-btn:hover {
+            opacity: 1 !important;
+            color: var(--error-color);
+        }
+
+        .history-empty, .history-loading {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 2.5rem 1rem;
+            color: var(--text-muted);
+            text-align: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        /* Floating open sidebar button */
+        .floating-sidebar-btn {
+            display: none;
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            z-index: 90;
+            background: var(--card-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 0.45rem 0.9rem;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s;
+            align-items: center;
+            gap: 0.4rem;
+        }
+
+        .floating-sidebar-btn:hover {
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+            transform: scale(1.03);
+        }
+
+        .sidebar.collapsed ~ .floating-sidebar-btn {
+            display: flex;
+        }
+
+        /* ── Main Content Area ── */
+        .main-content {
+            flex: 1;
+            height: 100%;
+            overflow-y: auto;
+            padding: 2rem;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .main-content::-webkit-scrollbar {
+            width: 8px;
+        }
+        .main-content::-webkit-scrollbar-thumb {
+            background-color: var(--border-color);
+            border-radius: 4px;
+        }
+
+        .container {
+            max-width: 920px;
+            margin: 0 auto;
+            width: 100%;
+            flex-grow: 1;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 2rem;
+        }
+
+        h1 {
+            color: var(--accent-color);
+            margin-bottom: 0.5rem;
+            font-size: 2.4rem;
+        }
+
+        .subtitle {
+            color: var(--text-muted);
+            font-size: 1.05rem;
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        input[type="text"] {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background-color: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            color: var(--text-color);
+            font-size: 1rem;
+            transition: border-color 0.2s;
+        }
+
+        input[type="text"]:focus {
+            outline: none;
+            border-color: var(--accent-color);
+        }
+
+        .output-options-card {
+            background-color: rgba(13, 17, 23, 0.6);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.85rem 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.65rem;
+        }
+
+        .options-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+        }
+
+        .options-title {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: var(--text-color);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .options-hint {
+            font-size: 0.76rem;
+            color: var(--text-muted);
+        }
+
+        .checkboxes-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 0.6rem;
+        }
+
+        .custom-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            background: var(--card-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 0.55rem 0.75rem;
+            cursor: pointer;
+            font-size: 0.88rem;
+            color: var(--text-color);
+            transition: all 0.2s ease;
+            user-select: none;
+        }
+
+        .custom-checkbox:hover {
+            border-color: var(--accent-color);
+            background-color: rgba(88, 166, 255, 0.08);
+        }
+
+        .custom-checkbox input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            border: 1.5px solid var(--border-color);
+            border-radius: 4px;
+            background-color: var(--bg-color);
+            display: grid;
+            place-content: center;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            flex-shrink: 0;
+            margin: 0;
+        }
+
+        .custom-checkbox input[type="checkbox"]:checked {
+            background-color: var(--accent-color);
+            border-color: var(--accent-color);
+        }
+
+        .custom-checkbox input[type="checkbox"]:checked::before {
+            content: "✓";
+            color: #ffffff;
+            font-size: 11px;
+            font-weight: 900;
+            line-height: 1;
+        }
+
+        .custom-checkbox input[type="checkbox"]:focus {
+            outline: none;
+            box-shadow: 0 0 0 2px rgba(88, 166, 255, 0.3);
+        }
+
+        .step-item.skipped {
+            color: var(--text-muted);
+            opacity: 0.65;
+        }
+
+        button.btn-primary {
+            background-color: var(--accent-color);
+            color: #ffffff;
+            border: none;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            font-size: 1.05rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background-color 0.2s, transform 0.1s;
+            width: 100%;
+        }
+
+        button.btn-primary:hover {
+            background-color: var(--accent-hover);
+        }
+
+        button.btn-primary:active {
+            transform: scale(0.98);
+        }
+        
+        button.btn-primary:disabled {
+            background-color: var(--border-color);
+            color: var(--text-muted);
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        /* Progress Section */
+        #progressSection {
+            display: none;
+        }
+
+        .step-list {
+            list-style: none;
+            margin-top: 1rem;
+        }
+
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.5rem 0;
+            color: var(--text-muted);
+            transition: color 0.3s;
+        }
+
+        .step-item.active {
+            color: var(--accent-color);
+        }
+
+        .step-item.done {
+            color: var(--text-color);
+        }
+
+        .spinner {
+            width: 20px;
+            height: 20px;
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-radius: 50%;
+            border-top-color: var(--accent-color);
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        
+        .icon {
+            width: 20px;
+            text-align: center;
+            font-size: 1.2rem;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Results Section */
+        #resultsSection {
+            display: none;
+        }
+
+        /* Output folder banner */
+        .output-banner {
+            display: none;
+            align-items: center;
+            justify-content: space-between;
+            background: rgba(88, 166, 255, 0.1);
+            border: 1px solid rgba(88, 166, 255, 0.3);
+            border-radius: 8px;
+            padding: 0.85rem 1.25rem;
+            margin-bottom: 1.25rem;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .output-info {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+        }
+
+        .output-icon {
+            font-size: 1.6rem;
+        }
+
+        .output-title {
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .output-path {
+            font-family: monospace;
+            font-size: 0.95rem;
+            color: var(--accent-color);
+            word-break: break-all;
+            margin-top: 0.2rem;
+        }
+
+        .btn-secondary {
+            background-color: var(--card-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            padding: 0.5rem 1.1rem;
+            border-radius: 6px;
+            font-size: 0.9rem;
+            font-weight: 500;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            transition: all 0.2s;
+        }
+
+        .btn-secondary:hover {
+            background-color: var(--border-color);
+            border-color: var(--accent-color);
+            color: var(--accent-color);
+        }
+
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 1rem;
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+            transition: color 0.2s, border-bottom-color 0.2s;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+
+        .tab:hover {
+            color: var(--text-color);
+        }
+
+        .tab.active {
+            color: var(--accent-color);
+            border-bottom-color: var(--accent-color);
+            font-weight: 600;
+        }
+
+        .tab-panel {
+            display: none;
+            max-height: 650px;
+            overflow-y: auto;
+            position: relative;
+            padding-top: 1rem;
+        }
+
+        .tab-panel.active {
+            display: block;
+        }
+
+        .panel-actions {
+            position: absolute;
+            top: 0;
+            right: 0;
+            display: flex;
+            gap: 0.5rem;
+            background: var(--card-bg);
+            padding-left: 0.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom-left-radius: 8px;
+            z-index: 10;
+        }
+        
+        .tab-content {
+            margin-top: 1rem;
+        }
+
+        button.btn-icon {
+            background-color: var(--bg-color);
+            color: var(--text-muted);
+            border: 1px solid var(--border-color);
+            padding: 0.4rem 0.8rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        button.btn-icon:hover {
+            color: var(--text-color);
+            border-color: var(--text-muted);
+        }
+        
+        /* Markdown styles */
+        .markdown-body {
+            color: var(--text-color);
+        }
+        .markdown-body h1, .markdown-body h2, .markdown-body h3 {
+            border-bottom: 1px solid var(--border-color);
+            padding-bottom: 0.3em;
+            margin-bottom: 16px;
+            margin-top: 24px;
+        }
+        .markdown-body ul, .markdown-body ol {
+            padding-left: 2em;
+            margin-bottom: 16px;
+        }
+        .markdown-body code {
+            background-color: rgba(110,118,129,0.4);
+            border-radius: 6px;
+            padding: 0.2em 0.4em;
+            font-family: monospace;
+        }
+        .markdown-body pre {
+            background-color: var(--bg-color);
+            padding: 16px;
+            border-radius: 6px;
+            overflow: auto;
+            margin-bottom: 16px;
+        }
+
+        /* Error Alert */
+        #errorSection {
+            display: none;
+            background-color: rgba(248, 81, 73, 0.1);
+            border: 1px solid var(--error-color);
+            color: var(--error-color);
+            padding: 1rem;
+            border-radius: 8px;
+            margin-bottom: 1.5rem;
+            white-space: pre-wrap;
+            line-height: 1.5;
+        }
+
+        footer {
+            text-align: center;
+            margin-top: 2rem;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+        
+        /* Tooltip */
+        .tooltip {
+            position: relative;
+        }
+        .tooltip::after {
+            content: "Copied!";
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--text-color);
+            color: var(--bg-color);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .tooltip.show::after {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body>
+    <div class="app-layout">
+        <!-- ── LEFT LANE: History Sidebar ── -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-title">
+                    <span>📜 History</span>
+                    <span class="history-badge" id="historyCount">0</span>
+                </div>
+                <div class="sidebar-actions">
+                    <button id="newAnalysisBtn" class="btn-sidebar-action" title="Start New Analysis">➕ New</button>
+                    <button id="collapseSidebarBtn" class="btn-sidebar-action icon-only" title="Hide History Sidebar">◀</button>
+                </div>
+            </div>
+
+            <div class="sidebar-search">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="historySearchInput" placeholder="Search history..." autocomplete="off">
+                <button id="clearSearchBtn" class="clear-search-btn" style="display:none;" title="Clear search">✕</button>
+            </div>
+
+            <div class="history-list" id="historyList">
+                <div class="history-loading" id="historyLoading">
+                    <div class="spinner"></div>
+                    <span>Loading history...</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Floating Button to reopen History when collapsed -->
+        <button id="floatingOpenSidebarBtn" class="floating-sidebar-btn" title="Open History">
+            <span>📜</span>
+            <span>History</span>
+        </button>
+
+        <!-- ── MAIN CONTENT ── -->
+        <main class="main-content">
+            <div class="container">
+                <header>
+                    <h1>🎬 YouTube Video Analyzer</h1>
+                    <div class="subtitle">Extract Step-by-Step Procedures, Mind Maps, and Flowcharts into Obsidian Notes</div>
+                </header>
+
+                <div id="errorSection"></div>
+
+                <div class="card input-section">
+                    <div class="input-group">
+                        <input type="text" id="videoUrl" placeholder="Paste YouTube URL or video ID (e.g., https://www.youtube.com/watch?v=LuOA8ocriX4)..." autocomplete="off">
+                        <div class="output-options-card">
+                            <div class="options-header">
+                                <span class="options-title">Select outputs to generate:</span>
+                                <span class="options-hint">(Select only what you need to save memory & quota)</span>
+                            </div>
+                            <div class="checkboxes-grid">
+                                <label class="custom-checkbox">
+                                    <input type="checkbox" id="checkSteps" checked>
+                                    <span>📋 Step-by-Step</span>
+                                </label>
+                                <label class="custom-checkbox">
+                                    <input type="checkbox" id="checkMindmap" checked>
+                                    <span>🧠 Mind Map</span>
+                                </label>
+                                <label class="custom-checkbox">
+                                    <input type="checkbox" id="checkFlowchart" checked>
+                                    <span>📊 Flowchart</span>
+                                </label>
+                                <label class="custom-checkbox">
+                                    <input type="checkbox" id="includeTranscript" checked>
+                                    <span>📝 Raw Transcript</span>
+                                </label>
+                            </div>
+                        </div>
+                        <button id="analyzeBtn" class="btn-primary">Analyze Video</button>
+                    </div>
+                </div>
+
+                <div id="progressSection" class="card">
+                    <h3>Analysis Progress</h3>
+                    <ul class="step-list">
+                        <li id="step-transcript" class="step-item">
+                            <span class="icon">⏳</span>
+                            <span class="text">Fetching transcript...</span>
+                        </li>
+                        <li id="step-steps" class="step-item">
+                            <span class="icon">⏳</span>
+                            <span class="text">Generating step-by-step procedure...</span>
+                        </li>
+                        <li id="step-mindmap" class="step-item">
+                            <span class="icon">⏳</span>
+                            <span class="text">Generating mind map...</span>
+                        </li>
+                        <li id="step-flowchart" class="step-item">
+                            <span class="icon">⏳</span>
+                            <span class="text">Generating flowchart...</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <div id="resultsSection" class="card">
+                    <!-- Output Folder Banner -->
+                    <div id="outputFolderBanner" class="output-banner">
+                        <div class="output-info">
+                            <span class="output-icon">📁</span>
+                            <div>
+                                <div class="output-title">Obsidian & Markdown Documents Saved</div>
+                                <div class="output-path" id="outputPathDisplay">output/</div>
+                            </div>
+                        </div>
+                        <button id="openFolderBtn" class="btn-secondary" type="button">
+                            <span>📂 Open Output Folder</span>
+                        </button>
+                    </div>
+
+                    <div class="tabs">
+                        <div class="tab active" data-target="panel-steps">📋 Steps</div>
+                        <div class="tab" data-target="panel-mindmap">🧠 Mind Map</div>
+                        <div class="tab" data-target="panel-flowchart">📊 Flowchart</div>
+                        <div class="tab" data-target="panel-report">📄 Full Report</div>
+                    </div>
+
+                    <div id="panel-steps" class="tab-panel active">
+                        <div class="panel-actions">
+                            <button class="btn-icon copy-btn">Copy</button>
+                            <button class="btn-icon download-btn" data-ext=".md">Download .md</button>
+                        </div>
+                        <div class="tab-content markdown-body" id="content-steps"></div>
+                    </div>
+
+                    <div id="panel-mindmap" class="tab-panel">
+                        <div class="panel-actions">
+                            <button class="btn-icon copy-btn">Copy</button>
+                            <button class="btn-icon download-btn" data-ext=".md">Download .md</button>
+                        </div>
+                        <div class="tab-content" id="content-mindmap"></div>
+                    </div>
+
+                    <div id="panel-flowchart" class="tab-panel">
+                        <div class="panel-actions">
+                            <button class="btn-icon copy-btn">Copy</button>
+                            <button class="btn-icon download-btn" data-ext=".md">Download .md</button>
+                        </div>
+                        <div class="tab-content" id="content-flowchart"></div>
+                    </div>
+
+                    <div id="panel-report" class="tab-panel">
+                        <div class="panel-actions">
+                            <button class="btn-icon copy-btn">Copy</button>
+                            <button class="btn-icon download-btn" data-ext=".md">Download .md</button>
+                        </div>
+                        <div class="tab-content markdown-body" id="content-report"></div>
+                    </div>
+                </div>
+
+                <footer>
+                    Powered by Gemini 3.5 Flash • Obsidian Ready • Built with Flask
+                </footer>
+            </div>
+        </main>
+    </div>
+
+    <script type="module">
+        import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs';
+        
+        mermaid.initialize({ 
+            startOnLoad: false, 
+            theme: 'dark' 
+        });
+
+        // Elements
+        const analyzeBtn = document.getElementById('analyzeBtn');
+        const videoUrlInput = document.getElementById('videoUrl');
+        const checkSteps = document.getElementById('checkSteps');
+        const checkMindmap = document.getElementById('checkMindmap');
+        const checkFlowchart = document.getElementById('checkFlowchart');
+        const includeTranscriptCheckbox = document.getElementById('includeTranscript');
+        const progressSection = document.getElementById('progressSection');
+        const resultsSection = document.getElementById('resultsSection');
+        const errorSection = document.getElementById('errorSection');
+        const tabs = document.querySelectorAll('.tab');
+        
+        // Sidebar elements
+        const sidebar = document.getElementById('sidebar');
+        const collapseSidebarBtn = document.getElementById('collapseSidebarBtn');
+        const floatingOpenSidebarBtn = document.getElementById('floatingOpenSidebarBtn');
+        const newAnalysisBtn = document.getElementById('newAnalysisBtn');
+        const historyList = document.getElementById('historyList');
+        const historyCount = document.getElementById('historyCount');
+        const historySearchInput = document.getElementById('historySearchInput');
+        const clearSearchBtn = document.getElementById('clearSearchBtn');
+
+        // Current active state
+        let allHistoryItems = [];
+        let currentActiveVideoId = null;
+
+        // Data storage for current view
+        const resultsData = {
+            steps: '',
+            mindmap: '',
+            flowchart: '',
+            report: '',
+            video_id: '',
+            output_dir: ''
+        };
+
+        // ── Sidebar Toggle & Persistence ──
+        function setSidebarCollapsed(collapsed) {
+            if (collapsed) {
+                sidebar.classList.add('collapsed');
+                localStorage.setItem('sidebar_collapsed', 'true');
+            } else {
+                sidebar.classList.remove('collapsed');
+                localStorage.setItem('sidebar_collapsed', 'false');
+            }
+        }
+
+        if (localStorage.getItem('sidebar_collapsed') === 'true') {
+            setSidebarCollapsed(true);
+        }
+
+        collapseSidebarBtn.addEventListener('click', () => setSidebarCollapsed(true));
+        floatingOpenSidebarBtn.addEventListener('click', () => setSidebarCollapsed(false));
+
+        // ── New Analysis Button ──
+        newAnalysisBtn.addEventListener('click', () => {
+            videoUrlInput.value = '';
+            resultsSection.style.display = 'none';
+            progressSection.style.display = 'none';
+            errorSection.style.display = 'none';
+            currentActiveVideoId = null;
+            document.querySelectorAll('.history-item').forEach(el => el.classList.remove('active'));
+            videoUrlInput.focus();
+        });
+
+        // ── Open Output Folder button ──
+        const openFolderBtn = document.getElementById('openFolderBtn');
+        if (openFolderBtn) {
+            openFolderBtn.addEventListener('click', async function() {
+                const originalHtml = this.innerHTML;
+                this.innerHTML = '<span>⏳ Opening...</span>';
+                try {
+                    await fetch('/api/open-folder', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            path: resultsData.output_dir,
+                            video_id: resultsData.video_id
+                        })
+                    });
+                } catch (err) {
+                    console.error('Error opening folder:', err);
+                } finally {
+                    setTimeout(() => {
+                        this.innerHTML = originalHtml;
+                    }, 800);
+                }
+            });
+        }
+
+        // ── Tab Switching & Dynamic Tab Visibility ──
+        function activateTab(targetTab) {
+            if (!targetTab) return;
+            tabs.forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            
+            targetTab.classList.add('active');
+            const targetPanel = document.getElementById(targetTab.dataset.target);
+            if (targetPanel) {
+                targetPanel.classList.add('active');
+                if (targetTab.dataset.target === 'panel-mindmap' && resultsData.mindmap) {
+                    renderDiagram('content-mindmap', resultsData.mindmap);
+                } else if (targetTab.dataset.target === 'panel-flowchart' && resultsData.flowchart) {
+                    renderDiagram('content-flowchart', resultsData.flowchart);
+                }
+            }
+        }
+
+        function updateTabsVisibility() {
+            const hasSteps = Boolean(resultsData.steps && resultsData.steps.trim());
+            const hasMindmap = Boolean(resultsData.mindmap && resultsData.mindmap.trim());
+            const hasFlowchart = Boolean(resultsData.flowchart && resultsData.flowchart.trim());
+            const hasReport = Boolean(resultsData.report && resultsData.report.trim());
+
+            const stepTab = document.querySelector('.tab[data-target="panel-steps"]');
+            const mindmapTab = document.querySelector('.tab[data-target="panel-mindmap"]');
+            const flowchartTab = document.querySelector('.tab[data-target="panel-flowchart"]');
+            const reportTab = document.querySelector('.tab[data-target="panel-report"]');
+
+            if (stepTab) stepTab.style.display = hasSteps ? 'block' : 'none';
+            if (mindmapTab) mindmapTab.style.display = hasMindmap ? 'block' : 'none';
+            if (flowchartTab) flowchartTab.style.display = hasFlowchart ? 'block' : 'none';
+            if (reportTab) reportTab.style.display = hasReport ? 'block' : 'none';
+
+            // Find current active tab or switch to first visible
+            const activeTab = document.querySelector('.tab.active');
+            const visibleTabs = [stepTab, mindmapTab, flowchartTab, reportTab].filter(t => t && t.style.display !== 'none');
+
+            if (!activeTab || activeTab.style.display === 'none') {
+                if (visibleTabs.length > 0) {
+                    activateTab(visibleTabs[0]);
+                }
+            } else {
+                if (activeTab.dataset.target === 'panel-mindmap' && resultsData.mindmap) {
+                    renderDiagram('content-mindmap', resultsData.mindmap);
+                } else if (activeTab.dataset.target === 'panel-flowchart' && resultsData.flowchart) {
+                    renderDiagram('content-flowchart', resultsData.flowchart);
+                }
+            }
+        }
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                activateTab(tab);
+            });
+        });
+
+        // ── Copy and Download logic ──
+        document.querySelectorAll('.tab-panel').forEach(panel => {
+            const panelId = panel.id.replace('panel-', '');
+            
+            const copyBtn = panel.querySelector('.copy-btn');
+            if (copyBtn) {
+                copyBtn.addEventListener('click', async function() {
+                    const content = resultsData[panelId];
+                    if (content) {
+                        try {
+                            await navigator.clipboard.writeText(content);
+                            this.classList.add('tooltip', 'show');
+                            setTimeout(() => this.classList.remove('show', 'tooltip'), 2000);
+                        } catch (err) {
+                            console.error('Failed to copy text: ', err);
+                        }
+                    }
+                });
+            }
+
+            const downloadBtn = panel.querySelector('.download-btn');
+            if (downloadBtn) {
+                downloadBtn.addEventListener('click', function() {
+                    let content = resultsData[panelId];
+                    if (content) {
+                        const ext = this.dataset.ext || '.md';
+                        // For Obsidian markdown download, wrap mindmap and flowchart in ```mermaid
+                        if (ext === '.md') {
+                            if (panelId === 'mindmap') {
+                                content = `# 🧠 Mind Map\n\n\`\`\`mermaid\n${content}\n\`\`\`\n`;
+                            } else if (panelId === 'flowchart') {
+                                content = `# 📊 Flowchart\n\n\`\`\`mermaid\n${content}\n\`\`\`\n`;
+                            }
+                        }
+                        const blob = new Blob([content], { type: 'text/markdown;charset=utf-8' });
+                        const url = URL.createObjectURL(blob);
+                        const a = document.createElement('a');
+                        a.href = url;
+                        const prefix = resultsData.video_id ? `${resultsData.video_id}-` : '';
+                        a.download = `${prefix}${panelId}${ext}`;
+                        document.body.appendChild(a);
+                        a.click();
+                        document.body.removeChild(a);
+                        URL.revokeObjectURL(url);
+                    }
+                });
+            }
+        });
+
+        // ── Progress UI Helpers ──
+        function updateStep(stepId, status, customMsg) {
+            const stepEl = document.getElementById(`step-${stepId}`);
+            if (!stepEl) return;
+            
+            const iconEl = stepEl.querySelector('.icon');
+            const textEl = stepEl.querySelector('.text');
+            if (customMsg && textEl) {
+                textEl.textContent = customMsg;
+            }
+
+            if (status === 'active') {
+                stepEl.className = 'step-item active';
+                iconEl.className = 'icon spinner';
+                iconEl.textContent = '';
+            } else if (status === 'done') {
+                stepEl.className = 'step-item done';
+                iconEl.className = 'icon';
+                iconEl.textContent = '✅';
+            } else if (status === 'skipped') {
+                stepEl.className = 'step-item skipped';
+                iconEl.className = 'icon';
+                iconEl.textContent = '⚪';
+            } else if (status === 'pending') {
+                stepEl.className = 'step-item';
+                iconEl.className = 'icon';
+                iconEl.textContent = '⏳';
+            }
+        }
+
+        function showError(msg) {
+            errorSection.textContent = msg;
+            errorSection.style.display = 'block';
+            analyzeBtn.disabled = false;
+            progressSection.style.display = 'none';
+        }
+
+        async function renderDiagram(id, content) {
+            const container = document.getElementById(id);
+            container.innerHTML = '';
+            
+            if (!content) return;
+            
+            const pre = document.createElement('pre');
+            pre.className = 'mermaid';
+            pre.textContent = content;
+            container.appendChild(pre);
+            
+            try {
+                await mermaid.run({
+                    nodes: [pre]
+                });
+            } catch (err) {
+                console.error('Mermaid render error:', err);
+                container.innerHTML = `<div style="color:var(--error-color)">Failed to render diagram.</div><pre style="white-space:pre-wrap">${content}</pre>`;
+            }
+        }
+
+        // ── History API & Rendering ──
+        async function loadHistory() {
+            try {
+                const res = await fetch('/api/history');
+                if (!res.ok) throw new Error('Failed to load history');
+                allHistoryItems = await res.json();
+                historyCount.textContent = allHistoryItems.length;
+                renderHistoryList(allHistoryItems);
+            } catch (err) {
+                console.error('Error fetching history:', err);
+                historyList.innerHTML = `<div class="history-empty">Failed to load history</div>`;
+            }
+        }
+
+        function renderHistoryList(items) {
+            if (!items || items.length === 0) {
+                historyList.innerHTML = `
+                    <div class="history-empty">
+                        <span style="font-size:1.5rem">📂</span>
+                        <span>No history yet</span>
+                        <small>Analyzed videos will appear here</small>
+                    </div>`;
+                return;
+            }
+
+            historyList.innerHTML = '';
+            items.forEach(item => {
+                const card = document.createElement('div');
+                card.className = `history-item ${item.video_id === currentActiveVideoId ? 'active' : ''}`;
+                card.dataset.videoId = item.video_id;
+
+                const dateStr = item.timestamp ? item.timestamp.split(' ')[0] : '';
+                const fallbackThumb = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="120" height="90" viewBox="0 0 120 90" fill="%23161b22"><rect width="120" height="90"/><text x="50%" y="50%" fill="%238b949e" dominant-baseline="middle" text-anchor="middle" font-size="12">▶</text></svg>';
+
+                card.innerHTML = `
+                    <div class="history-thumb-wrapper">
+                        <img class="history-thumb" src="${item.thumbnail || fallbackThumb}" 
+                             alt="${item.title}" 
+                             onerror="this.src='${fallbackThumb}'" 
+                             loading="lazy">
+                    </div>
+                    <div class="history-details">
+                        <div class="history-item-title" title="${item.title}">${item.title}</div>
+                        <div class="history-item-meta">
+                            <span class="history-id">${item.video_id}</span>
+                            ${dateStr ? `<span class="history-dot">•</span><span class="history-date">${dateStr}</span>` : ''}
+                        </div>
+                    </div>
+                    <button class="history-delete-btn" title="Delete from history" data-del-id="${item.video_id}">🗑️</button>
+                `;
+
+                // Card click loads the analysis
+                card.addEventListener('click', (e) => {
+                    if (e.target.closest('.history-delete-btn')) return;
+                    selectHistoryItem(item.video_id);
+                });
+
+                // Delete click
+                const delBtn = card.querySelector('.history-delete-btn');
+                delBtn.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Delete analysis for "${item.title}" (${item.video_id})?`)) {
+                        await deleteHistoryItem(item.video_id);
+                    }
+                });
+
+                historyList.appendChild(card);
+            });
+        }
+
+        async function selectHistoryItem(videoId) {
+            currentActiveVideoId = videoId;
+            document.querySelectorAll('.history-item').forEach(el => {
+                el.classList.toggle('active', el.dataset.videoId === videoId);
+            });
+
+            errorSection.style.display = 'none';
+            progressSection.style.display = 'none';
+
+            try {
+                const res = await fetch(`/api/history/${videoId}`);
+                if (!res.ok) throw new Error('Could not load analysis details');
+                const data = await res.json();
+
+                resultsData.steps = data.steps || '';
+                resultsData.mindmap = data.mindmap || '';
+                resultsData.flowchart = data.flowchart || '';
+                resultsData.report = data.report || '';
+                resultsData.video_id = data.video_id || videoId;
+                resultsData.output_dir = data.output_dir || '';
+
+                videoUrlInput.value = `https://www.youtube.com/watch?v=${videoId}`;
+
+                // Display output folder banner
+                const banner = document.getElementById('outputFolderBanner');
+                const pathDisplay = document.getElementById('outputPathDisplay');
+                if (data.output_dir && banner && pathDisplay) {
+                    pathDisplay.textContent = data.output_dir;
+                    banner.style.display = 'flex';
+                }
+
+                // Render content
+                document.getElementById('content-steps').innerHTML = marked.parse(resultsData.steps);
+                document.getElementById('content-report').innerHTML = marked.parse(resultsData.report);
+
+                // Update tab visibility to show only available outputs
+                updateTabsVisibility();
+
+                resultsSection.style.display = 'block';
+
+                // Scroll smoothly to results
+                resultsSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } catch (err) {
+                showError(`Failed to load saved analysis: ${err.message}`);
+            }
+        }
+
+        async function deleteHistoryItem(videoId) {
+            try {
+                const res = await fetch(`/api/history/${videoId}`, { method: 'DELETE' });
+                if (!res.ok) throw new Error('Failed to delete history item');
+                
+                // If currently viewing deleted video, clear results
+                if (currentActiveVideoId === videoId) {
+                    resultsSection.style.display = 'none';
+                    videoUrlInput.value = '';
+                    currentActiveVideoId = null;
+                }
+
+                await loadHistory();
+            } catch (err) {
+                alert(`Error deleting history: ${err.message}`);
+            }
+        }
+
+        // ── Search & Filter in History ──
+        historySearchInput.addEventListener('input', (e) => {
+            const query = e.target.value.trim().toLowerCase();
+            clearSearchBtn.style.display = query ? 'block' : 'none';
+            if (!query) {
+                renderHistoryList(allHistoryItems);
+                return;
+            }
+            const filtered = allHistoryItems.filter(item => 
+                (item.title && item.title.toLowerCase().includes(query)) ||
+                (item.video_id && item.video_id.toLowerCase().includes(query))
+            );
+            renderHistoryList(filtered);
+        });
+
+        clearSearchBtn.addEventListener('click', () => {
+            historySearchInput.value = '';
+            clearSearchBtn.style.display = 'none';
+            renderHistoryList(allHistoryItems);
+            historySearchInput.focus();
+        });
+
+        // ── Analyze logic & SSE Streaming ──
+        analyzeBtn.addEventListener('click', () => {
+            const videoValue = videoUrlInput.value.trim();
+            if (!videoValue) {
+                showError('Please enter a valid YouTube URL or video ID.');
+                return;
+            }
+
+            const genSteps = checkSteps ? checkSteps.checked : true;
+            const genMindmap = checkMindmap ? checkMindmap.checked : true;
+            const genFlowchart = checkFlowchart ? checkFlowchart.checked : true;
+            const includeTranscript = includeTranscriptCheckbox ? includeTranscriptCheckbox.checked : true;
+
+            if (!genSteps && !genMindmap && !genFlowchart && !includeTranscript) {
+                showError('Please select at least one output option to generate.');
+                return;
+            }
+
+            // Reset UI
+            errorSection.style.display = 'none';
+            resultsSection.style.display = 'none';
+            progressSection.style.display = 'block';
+            analyzeBtn.disabled = true;
+            
+            // Set initial statuses based on user checkbox selection
+            updateStep('transcript', 'pending', 'Fetching transcript...');
+            updateStep('steps', genSteps ? 'pending' : 'skipped', genSteps ? 'Generating step-by-step procedure...' : 'Step-by-step procedure skipped');
+            updateStep('mindmap', genMindmap ? 'pending' : 'skipped', genMindmap ? 'Generating mind map...' : 'Mind map skipped');
+            updateStep('flowchart', genFlowchart ? 'pending' : 'skipped', genFlowchart ? 'Generating flowchart...' : 'Flowchart skipped');
+            
+            // Start process
+            startAnalysisStream(videoValue, genSteps, genMindmap, genFlowchart, includeTranscript);
+        });
+
+        function startAnalysisStream(video, genSteps, genMindmap, genFlowchart, includeTranscript) {
+            const url = `/api/analyze/stream?video=${encodeURIComponent(video)}&gen_steps=${genSteps}&gen_mindmap=${genMindmap}&gen_flowchart=${genFlowchart}&include_transcript=${includeTranscript}`;
+            const source = new EventSource(url);
+
+            updateStep('transcript', 'active', 'Fetching transcript...');
+
+            source.onmessage = function(event) {
+                try {
+                    const data = JSON.parse(event.data);
+                    
+                    if (data.step) {
+                        if (data.step === 'error') {
+                            showError(data.message || 'An error occurred during analysis.');
+                            source.close();
+                            return;
+                        }
+
+                        // Update progress spinners based on status
+                        if (data.status === 'running') {
+                            updateStep(data.step, 'active', data.message);
+                        } else if (data.status === 'done' && data.step !== 'complete') {
+                            updateStep(data.step, 'done', data.message);
+                        } else if (data.status === 'skipped') {
+                            updateStep(data.step, 'skipped', data.message);
+                        }
+                        
+                        if (data.step === 'complete') {
+                            if (genFlowchart) {
+                                updateStep('flowchart', 'done', 'Flowchart ready');
+                            }
+                            
+                            // data.data is a JSON string from the server — parse it
+                            const result = typeof data.data === 'string' ? JSON.parse(data.data) : (data.data || {});
+                            resultsData.steps = result.steps || '';
+                            resultsData.mindmap = result.mindmap || '';
+                            resultsData.flowchart = result.flowchart || '';
+                            resultsData.report = result.report || '';
+                            resultsData.output_dir = result.output_dir || '';
+                            resultsData.video_id = result.video_id || '';
+                            currentActiveVideoId = resultsData.video_id;
+
+                            // Display output folder banner if documents were saved
+                            const banner = document.getElementById('outputFolderBanner');
+                            const pathDisplay = document.getElementById('outputPathDisplay');
+                            if (result.output_dir && banner && pathDisplay) {
+                                pathDisplay.textContent = result.output_dir;
+                                banner.style.display = 'flex';
+                            } else if (banner) {
+                                banner.style.display = 'none';
+                            }
+
+                            // Render results
+                            document.getElementById('content-steps').innerHTML = marked.parse(resultsData.steps);
+                            document.getElementById('content-report').innerHTML = marked.parse(resultsData.report);
+                            
+                            // Update tab visibility dynamically based on what was generated
+                            updateTabsVisibility();
+                            
+                            // Show results
+                            progressSection.style.display = 'none';
+                            resultsSection.style.display = 'block';
+                            analyzeBtn.disabled = false;
+                            source.close();
+
+                            // Reload history so the new video immediately appears in the left lane!
+                            loadHistory();
+                        }
+                    }
+                } catch (e) {
+                    console.error("Error parsing SSE data", e, event.data);
+                }
+            };
+
+            source.onerror = function(error) {
+                console.error("SSE Error", error);
+                if (source.readyState !== EventSource.CLOSED) {
+                    showError("Connection lost to server. Please try again.");
+                }
+                source.close();
+                analyzeBtn.disabled = false;
+            };
+        }
+
+        // Initialize history on page load
+        loadHistory();
+    </script>
+</body>
+</html>
